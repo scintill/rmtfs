@@ -4,13 +4,16 @@
 #include <dirent.h>
 #include <errno.h>
 #include <fcntl.h>
+#ifndef NO_UDEV
 #include <libudev.h>
+#endif
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
 #include <unistd.h>
+#include <endian.h>
 #include "rmtfs.h"
 
 static int rmtfs_mem_enumerate(struct rmtfs_mem *rmem);
@@ -22,6 +25,7 @@ struct rmtfs_mem {
 	int fd;
 };
 
+#ifndef NO_UDEV
 static int parse_hex_sysattr(struct udev_device *dev, const char *name,
 			     unsigned long *value)
 {
@@ -43,6 +47,7 @@ static int parse_hex_sysattr(struct udev_device *dev, const char *name,
 
 	return 0;
 }
+#endif
 
 static int parse_hex_sysfsfile(int dir_fd, const char *name,
 			     unsigned long *value)
@@ -75,6 +80,7 @@ static int parse_hex_sysfsfile(int dir_fd, const char *name,
 	return 0;
 }
 
+#ifndef NO_UDEV
 static int rmtfs_mem_open_rfsa(struct rmtfs_mem *rmem, int client_id)
 {
 	struct udev_device *dev;
@@ -144,6 +150,7 @@ err_close_fd:
 	close(fd);
 	return -saved_errno;
 }
+#endif
 
 static int rmtfs_mem_open_uio(struct rmtfs_mem *rmem)
 {
@@ -153,8 +160,9 @@ static int rmtfs_mem_open_uio(struct rmtfs_mem *rmem)
 	int ret;
 	int dir_fd;
 	int fd;
+	int uio_index;
 
-	for (int uio_index = 0; uio_index < 8; uio_index++) {
+	for (uio_index = 0; uio_index < 8; uio_index++) {
 		snprintf(path, sizeof(path), "/sys/class/uio/uio%d", uio_index);
 		dir_fd = open(path, O_DIRECTORY);
 		if (dir_fd < 0) {
@@ -240,7 +248,11 @@ struct rmtfs_mem *rmtfs_mem_open(void)
 
 	memset(rmem, 0, sizeof(*rmem));
 
+#ifndef NO_UDEV
 	ret = rmtfs_mem_open_rfsa(rmem, 1);
+#else
+	ret = -ENOENT;
+#endif
 	if (ret < 0 && ret != -ENOENT) {
 		goto err;
 	} else if (ret < 0) {
