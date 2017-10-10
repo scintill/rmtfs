@@ -16,8 +16,8 @@
 static int rmtfs_mem_enumerate(struct rmtfs_mem *rmem);
 
 struct rmtfs_mem {
-	uint64_t address;
-	uint64_t size;
+	unsigned long address;
+	unsigned long size;
 	void *base;
 	int fd;
 };

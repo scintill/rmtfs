@@ -163,7 +163,7 @@ free_resp:
 
 static void rmtfs_iovec(int sock, unsigned node, unsigned port, void *msg, size_t msg_len)
 {
-	struct rmtfs_iovec_entry *entries;
+	struct rmtfs_iovec_entry *entries = NULL;
 	struct rmtfs_qmi_result result = {};
 	struct rmtfs_iovec_resp *resp;
 	struct rmtfs_iovec_req *req;
@@ -281,7 +281,7 @@ static void rmtfs_alloc_buf(int sock, unsigned node, unsigned port, void *msg, s
 	struct rmtfs_qmi_result result = {};
 	uint32_t alloc_size;
 	uint32_t caller_id;
-	int64_t address;
+	int64_t address = 0;
 	unsigned txn;
 	size_t len;
 	void *ptr;
@@ -334,7 +334,7 @@ static void rmtfs_get_dev_error(int sock, unsigned node, unsigned port, void *ms
 	struct rmtfs_dev_error_req *req;
 	struct rmtfs_qmi_result result = {};
 	uint32_t caller_id;
-	int dev_error;
+	int dev_error = 0;
 	unsigned txn;
 	size_t len;
 	void *ptr;
