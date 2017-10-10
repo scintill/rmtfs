@@ -23,11 +23,25 @@
 
 static struct rmtfs_mem *rmem;
 
-/* TODO: include from kernel once it lands */
-struct sockaddr_qrtr {
-	unsigned short sq_family;
-	uint32_t sq_node;
-	uint32_t sq_port;
+/* TODO: include from kernel? */
+struct msm_ipc_port_addr {
+	uint32_t node_id;
+	uint32_t port_id;
+};
+
+struct msm_ipc_addr {
+	unsigned char  addrtype;
+	union {
+		struct msm_ipc_port_addr port_addr;
+	} addr;
+};
+
+#define MSM_IPC_ADDR_ID			2
+
+struct sockaddr_msm_ipc {
+	unsigned short family;
+	struct msm_ipc_addr address;
+	unsigned char reserved;
 };
 
 static bool dbgprintf_enabled;
@@ -382,14 +396,15 @@ struct qrtr_ind_ops rmtfs_ctrl_ops = {
 
 static int handle_rmtfs(int sock)
 {
-	struct sockaddr_qrtr sq;
+	struct sockaddr_msm_ipc smi;
 	struct qmi_packet *qmi;
 	socklen_t sl;
 	char buf[4096];
 	int ret;
+	uint32_t sq_node, sq_port;
 
-	sl = sizeof(sq);
-	ret = recvfrom(sock, buf, sizeof(buf), 0, (void *)&sq, &sl);
+	sl = sizeof(smi);
+	ret = recvfrom(sock, buf, sizeof(buf), 0, (void *)&smi, &sl);
 	if (ret < 0) {
 		ret = -errno;
 		if (ret != -ENETRESET)
@@ -397,10 +412,17 @@ static int handle_rmtfs(int sock)
 		return ret;
 	}
 
-	dbgprintf("[RMTFS] packet; from: %d:%d\n", sq.sq_node, sq.sq_port);
+	if (smi.address.addrtype != MSM_IPC_ADDR_ID) {
+		fprintf(stderr, "[RMTFS] unexpected IPC addrtype\n");
+		return -EINVAL;
+	}
 
-	if (qrtr_is_ctrl_addr(&sq)) {
-		return qrtr_handle_ctrl_msg(&sq, buf, sizeof(buf),
+	sq_node = smi.address.addr.port_addr.node_id;
+	sq_port = smi.address.addr.port_addr.port_id;
+	dbgprintf("[RMTFS] packet; from: %d:%d\n", sq_node, sq_port);
+
+	if (qrtr_is_ctrl_addr(&smi)) {
+		return qrtr_handle_ctrl_msg(&smi, buf, sizeof(buf),
 					    &rmtfs_ctrl_ops, NULL);
 	}
 
@@ -412,19 +434,19 @@ static int handle_rmtfs(int sock)
 
 	switch (qmi->msg_id) {
 	case QMI_RMTFS_OPEN:
-		rmtfs_open(sock, sq.sq_node, sq.sq_port, qmi, qmi->msg_len);
+		rmtfs_open(sock, sq_node, sq_port, qmi, qmi->msg_len);
 		break;
 	case QMI_RMTFS_CLOSE:
-		rmtfs_close(sock, sq.sq_node, sq.sq_port, qmi, qmi->msg_len);
+		rmtfs_close(sock, sq_node, sq_port, qmi, qmi->msg_len);
 		break;
 	case QMI_RMTFS_RW_IOVEC:
-		rmtfs_iovec(sock, sq.sq_node, sq.sq_port, qmi, qmi->msg_len);
+		rmtfs_iovec(sock, sq_node, sq_port, qmi, qmi->msg_len);
 		break;
 	case QMI_RMTFS_ALLOC_BUFF:
-		rmtfs_alloc_buf(sock, sq.sq_node, sq.sq_port, qmi, qmi->msg_len);
+		rmtfs_alloc_buf(sock, sq_node, sq_port, qmi, qmi->msg_len);
 		break;
 	case QMI_RMTFS_GET_DEV_ERROR:
-		rmtfs_get_dev_error(sock, sq.sq_node, sq.sq_port, qmi, qmi->msg_len);
+		rmtfs_get_dev_error(sock, sq_node, sq_port, qmi, qmi->msg_len);
 		break;
 	default:
 		fprintf(stderr, "[RMTFS] Unknown request: %d\n", qmi->msg_id);
