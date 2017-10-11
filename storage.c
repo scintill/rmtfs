@@ -23,10 +23,14 @@ struct caller {
 };
 
 static const struct partition partition_table[] = {
+#ifndef RMTFS_PARTITION_TABLE
 	{ "/boot/modem_fs1", "/boot/modem_fs1" },
 	{ "/boot/modem_fs2", "/boot/modem_fs2" },
 	{ "/boot/modem_fsc", "/boot/modem_fsc" },
 	{ "/boot/modem_fsg", "/boot/modem_fsg" },
+#else
+	RMTFS_PARTITION_TABLE
+#endif
 	{}
 };
 
