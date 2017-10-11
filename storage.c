@@ -61,7 +61,7 @@ int storage_get(unsigned node, const char *path)
 			goto found;
 	}
 
-	fprintf(stderr, "[RMTFS storage] request for unknown partition '%s', rejecting\n", path);
+	LOG("[RMTFS storage] request for unknown partition '%s', rejecting\n", path);
 	return -EPERM;
 
 found:
@@ -80,14 +80,14 @@ found:
 		}
 	}
 	if (!caller) {
-		fprintf(stderr, "[storage] out of free caller handles\n");
+		LOG("[storage] out of free caller handles\n");
 		return -EBUSY;
 	}
 
 	fd = open(part->actual, O_RDWR);
 	if (fd < 0) {
 		saved_errno = errno;
-		fprintf(stderr, "[storage] failed to open '%s' (requested '%s'): %s\n",
+		LOG("[storage] failed to open '%s' (requested '%s'): %s\n",
 				part->actual, part->path, strerror(-errno));
 		return -saved_errno;
 	}

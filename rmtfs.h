@@ -30,4 +30,11 @@ int storage_get_handle(unsigned node, int caller_id);
 int storage_get_error(unsigned node, int caller_id);
 void storage_close(void);
 
+#ifdef ANDROID
+#include <log/log.h>
+#define LOG(f, ...) do { __android_log_buf_print(LOG_ID_MAIN, ANDROID_LOG_DEBUG, "rmtfsd", f, ##__VA_ARGS__); } while(0)
+#else
+#define LOG(f, ...) do { fprintf(stderr, f, ##__VA_ARGS__); } while(0)
+#endif
+
 #endif

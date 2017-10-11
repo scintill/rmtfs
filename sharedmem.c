@@ -96,7 +96,7 @@ static int rmtfs_mem_open_rfsa(struct rmtfs_mem *rmem, int client_id)
 	fd = open(path, O_RDWR);
 	if (fd < 0) {
 		saved_errno = errno;
-		fprintf(stderr, "failed to open %s: %s\n", path, strerror(errno));
+		LOG("failed to open %s: %s\n", path, strerror(errno));
 		return -saved_errno;
 	}
 	rmem->fd = fd;
@@ -104,7 +104,7 @@ static int rmtfs_mem_open_rfsa(struct rmtfs_mem *rmem, int client_id)
 	ret = fstat(fd, &sb);
 	if (ret < 0) {
 		saved_errno = errno;
-		fprintf(stderr, "failed to stat %s: %s\n", path, strerror(errno));
+		LOG("failed to stat %s: %s\n", path, strerror(errno));
 		close(fd);
 		goto err_close_fd;
 	}
@@ -112,27 +112,27 @@ static int rmtfs_mem_open_rfsa(struct rmtfs_mem *rmem, int client_id)
 	udev = udev_new();
 	if (!udev) {
 		saved_errno = errno;
-		fprintf(stderr, "failed to create udev context\n");
+		LOG("failed to create udev context\n");
 		goto err_close_fd;
 	}
 
 	dev = udev_device_new_from_devnum(udev, 'c', sb.st_rdev);
 	if (!dev) {
 		saved_errno = errno;
-		fprintf(stderr, "unable to find udev device\n");
+		LOG("unable to find udev device\n");
 		goto err_unref_udev;
 	}
 
 	ret = parse_hex_sysattr(dev, "phys_addr", &rmem->address);
 	if (ret < 0) {
-		fprintf(stderr, "failed to parse phys_addr of %s\n", path);
+		LOG("failed to parse phys_addr of %s\n", path);
 		saved_errno = -ret;
 		goto err_unref_dev;
 	}
 
 	ret = parse_hex_sysattr(dev, "size", &rmem->size);
 	if (ret < 0) {
-		fprintf(stderr, "failed to parse size of %s\n", path);
+		LOG("failed to parse size of %s\n", path);
 		saved_errno = -ret;
 		goto err_unref_dev;
 	}
@@ -168,7 +168,7 @@ static int rmtfs_mem_open_uio(struct rmtfs_mem *rmem)
 		if (dir_fd < 0) {
 			saved_errno = errno;
 			if (saved_errno != ENOENT) {
-				fprintf(stderr, "failed to open %s: %s\n", path, strerror(errno));
+				LOG("failed to open %s: %s\n", path, strerror(errno));
 			}
 			goto ret;
 		}
@@ -176,13 +176,13 @@ static int rmtfs_mem_open_uio(struct rmtfs_mem *rmem)
 		fd = openat(dir_fd, "name", O_RDONLY);
 		if (fd < 0) {
 			saved_errno = errno;
-			fprintf(stderr, "failed to open %s/name: %s\n", path, strerror(errno));
+			LOG("failed to open %s/name: %s\n", path, strerror(errno));
 			goto close_dirfd;
 		}
 
 		if (read(fd, buf, sizeof(buf)) < 0) {
 			saved_errno = errno;
-			fprintf(stderr, "failed to read %s/name: %s\n", path, strerror(errno));
+			LOG("failed to read %s/name: %s\n", path, strerror(errno));
 			close(fd);
 			goto close_dirfd;
 		}
@@ -195,14 +195,14 @@ static int rmtfs_mem_open_uio(struct rmtfs_mem *rmem)
 
 		ret = parse_hex_sysfsfile(dir_fd, "maps/map0/addr", &rmem->address);
 		if (ret < 0) {
-			fprintf(stderr, "failed to parse addr of %s\n", path);
+			LOG("failed to parse addr of %s\n", path);
 			saved_errno = -ret;
 			goto close_dirfd;
 		}
 
 		ret = parse_hex_sysfsfile(dir_fd, "maps/map0/size", &rmem->size);
 		if (ret < 0) {
-			fprintf(stderr, "failed to parse size of %s\n", path);
+			LOG("failed to parse size of %s\n", path);
 			saved_errno = -ret;
 			goto close_dirfd;
 		}
@@ -211,14 +211,14 @@ static int rmtfs_mem_open_uio(struct rmtfs_mem *rmem)
 		rmem->fd = open(path, O_RDWR);
 		if (rmem->fd < 0) {
 			saved_errno = errno;
-			fprintf(stderr, "failed to open %s: %s\n", path, strerror(errno));
+			LOG("failed to open %s: %s\n", path, strerror(errno));
 			return -saved_errno;
 		}
 
 		rmem->base = mmap(0, rmem->size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0);
 		if (rmem->base == MAP_FAILED) {
 			saved_errno = errno;
-			fprintf(stderr, "failed to mmap: %s\n", strerror(errno));
+			LOG("failed to mmap: %s\n", strerror(errno));
 			close(rmem->fd);
 			goto close_dirfd;
 		}
@@ -260,7 +260,7 @@ struct rmtfs_mem *rmtfs_mem_open(void)
 		if (ret < 0 && ret != -ENOENT) {
 			goto err;
 		} else if (ret < 0) {
-			fprintf(stderr, "falling back to /dev/mem access\n");
+			LOG("falling back to /dev/mem access\n");
 
 			ret = rmtfs_mem_enumerate(rmem);
 			if (ret < 0)
@@ -268,13 +268,13 @@ struct rmtfs_mem *rmtfs_mem_open(void)
 
 			fd = open("/dev/mem", O_RDWR|O_SYNC);
 			if (fd < 0) {
-				fprintf(stderr, "failed to open /dev/mem\n");
+				LOG("failed to open /dev/mem\n");
 				goto err;
 			}
 
 			base = mmap(0, rmem->size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, rmem->address);
 			if (base == MAP_FAILED) {
-				fprintf(stderr, "failed to mmap: %s\n", strerror(errno));
+				LOG("failed to mmap: %s\n", strerror(errno));
 				goto err_close_fd;
 			}
 
@@ -403,7 +403,7 @@ static int rmtfs_mem_enumerate(struct rmtfs_mem *rmem)
 
 		dirfd = openat(basefd, de->d_name, O_DIRECTORY);
 		if (dirfd < 0) {
-			fprintf(stderr, "failed to open %s: %s\n",
+			LOG("failed to open %s: %s\n",
 				de->d_name, strerror(-errno));
 			ret = -1;
 			goto out;
@@ -411,7 +411,7 @@ static int rmtfs_mem_enumerate(struct rmtfs_mem *rmem)
 
 		regfd = openat(dirfd, "reg", O_RDONLY);
 		if (regfd < 0) {
-			fprintf(stderr, "failed to open reg of %s: %s\n",
+			LOG("failed to open reg of %s: %s\n",
 				de->d_name, strerror(-errno));
 			ret = -1;
 			goto out;
@@ -425,7 +425,7 @@ static int rmtfs_mem_enumerate(struct rmtfs_mem *rmem)
 			rmem->address = be64toh(reg.qw[0]);
 			rmem->size = be64toh(reg.qw[1]);
 		} else {
-			fprintf(stderr, "failed to read reg of %s: %s\n",
+			LOG("failed to read reg of %s: %s\n",
 				de->d_name, strerror(-errno));
 			ret = -1;
 		}

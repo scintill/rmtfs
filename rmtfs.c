@@ -45,6 +45,7 @@ struct sockaddr_msm_ipc {
 };
 
 static bool dbgprintf_enabled;
+#ifndef ANDROID
 static void dbgprintf(const char *fmt, ...)
 {
 	va_list ap;
@@ -56,6 +57,9 @@ static void dbgprintf(const char *fmt, ...)
 	vprintf(fmt, ap);
 	va_end(ap);
 }
+#else
+#define dbgprintf(f, ...) do { if (dbgprintf_enabled) LOG(f, ##__VA_ARGS__); } while(0)
+#endif
 
 static void qmi_result_error(struct rmtfs_qmi_result *result, unsigned error)
 {
@@ -107,7 +111,7 @@ respond:
 
 	ret = qrtr_sendto(sock, node, port, ptr, len);
 	if (ret < 0)
-		fprintf(stderr, "[RMTFS] failed to send open-response: %s\n", strerror(-ret));
+		LOG("[RMTFS] failed to send open-response: %s\n", strerror(-ret));
 
 free_resp:
 	rmtfs_open_resp_free(resp);
@@ -154,7 +158,7 @@ respond:
 
 	ret = qrtr_sendto(sock, node, port, ptr, len);
 	if (ret < 0)
-		fprintf(stderr, "[RMTFS] failed to send close-response: %s\n", strerror(-ret));
+		LOG("[RMTFS] failed to send close-response: %s\n", strerror(-ret));
 
 free_resp:
 	rmtfs_close_resp_free(resp);
@@ -214,7 +218,7 @@ static void rmtfs_iovec(int sock, unsigned node, unsigned port, void *msg, size_
 
 	fd = storage_get_handle(node, caller_id);
 	if (fd < 0) {
-		fprintf(stderr, "[RMTFS] iovec request for non-existing caller\n");
+		LOG("[RMTFS] iovec request for non-existing caller\n");
 		qmi_result_error(&result, QMI_RMTFS_ERR_INTERNAL);
 		goto respond;
 	}
@@ -224,7 +228,7 @@ static void rmtfs_iovec(int sock, unsigned node, unsigned port, void *msg, size_
 
 		n = lseek(fd, entries[i].sector_addr * SECTOR_SIZE, SEEK_SET);
 		if (n < 0) {
-			fprintf(stderr, "[RMTFS] failed to seek sector %d\n", entries[i].sector_addr);
+			LOG("[RMTFS] failed to seek sector %d\n", entries[i].sector_addr);
 			qmi_result_error(&result, QMI_RMTFS_ERR_INTERNAL);
 			goto respond;
 		}
@@ -239,7 +243,7 @@ static void rmtfs_iovec(int sock, unsigned node, unsigned port, void *msg, size_
 			}
 
 			if (n != SECTOR_SIZE) {
-				fprintf(stderr, "[RMTFS] failed to %s sector %d\n",
+				LOG("[RMTFS] failed to %s sector %d\n",
 					is_write ? "write" : "read", entries[i].sector_addr + j);
 				qmi_result_error(&result, QMI_RMTFS_ERR_INTERNAL);
 				goto respond;
@@ -267,7 +271,7 @@ respond:
 
 	ret = qrtr_sendto(sock, node, port, ptr, len);
 	if (ret < 0)
-		fprintf(stderr, "[RMTFS] failed to send iovec-response: %s\n", strerror(-ret));
+		LOG("[RMTFS] failed to send iovec-response: %s\n", strerror(-ret));
 
 free_resp:
 	rmtfs_iovec_resp_free(resp);
@@ -321,7 +325,7 @@ respond:
 
 	ret = qrtr_sendto(sock, node, port, ptr, len);
 	if (ret < 0)
-		fprintf(stderr, "[RMTFS] failed to send alloc-response: %s\n", strerror(-ret));
+		LOG("[RMTFS] failed to send alloc-response: %s\n", strerror(-ret));
 
 free_resp:
 	rmtfs_alloc_buf_resp_free(resp);
@@ -368,7 +372,7 @@ respond:
 
 	ret = qrtr_sendto(sock, node, port, ptr, len);
 	if (ret < 0)
-		fprintf(stderr, "[RMTFS] failed to send error-response: %s\n", strerror(-ret));
+		LOG("[RMTFS] failed to send error-response: %s\n", strerror(-ret));
 
 free_resp:
 	rmtfs_dev_error_resp_free(resp);
@@ -408,12 +412,12 @@ static int handle_rmtfs(int sock)
 	if (ret < 0) {
 		ret = -errno;
 		if (ret != -ENETRESET)
-			fprintf(stderr, "[RMTFS] recvfrom failed: %d\n", ret);
+			LOG("[RMTFS] recvfrom failed: %d\n", ret);
 		return ret;
 	}
 
 	if (smi.address.addrtype != MSM_IPC_ADDR_ID) {
-		fprintf(stderr, "[RMTFS] unexpected IPC addrtype\n");
+		LOG("[RMTFS] unexpected IPC addrtype\n");
 		return -EINVAL;
 	}
 
@@ -428,7 +432,7 @@ static int handle_rmtfs(int sock)
 
 	qmi = (struct qmi_packet*)buf;
 	if (qmi->msg_len != ret - sizeof(struct qmi_packet)) {
-		fprintf(stderr, "[RMTFS] Invalid length of incoming qmi request\n");
+		LOG("[RMTFS] Invalid length of incoming qmi request\n");
 		return -EINVAL;
 	}
 
@@ -449,7 +453,7 @@ static int handle_rmtfs(int sock)
 		rmtfs_get_dev_error(sock, sq_node, sq_port, qmi, qmi->msg_len);
 		break;
 	default:
-		fprintf(stderr, "[RMTFS] Unknown request: %d\n", qmi->msg_id);
+		LOG("[RMTFS] Unknown request: %d\n", qmi->msg_id);
 		ret = -EINVAL;
 		break;
 	}
@@ -474,13 +478,13 @@ int main(int argc, char **argv)
 
 	ret = storage_open();
 	if (ret) {
-		fprintf(stderr, "failed to initialize storage system\n");
+		LOG("failed to initialize storage system\n");
 		goto close_rmtfs_mem;
 	}
 
 	rmtfs_fd = qrtr_open(RMTFS_QMI_SERVICE);
 	if (rmtfs_fd < 0) {
-		fprintf(stderr, "failed to create qrtr socket\n");
+		LOG("failed to create qrtr socket\n");
 		goto close_storage;
 	}
 
@@ -490,7 +494,7 @@ int main(int argc, char **argv)
 
 			ret = qrtr_publish(rmtfs_fd, RMTFS_QMI_SERVICE, RMTFS_QMI_VERSION, RMTFS_QMI_INSTANCE);
 			if (ret < 0) {
-				fprintf(stderr, "failed to publish rmtfs service");
+				LOG("failed to publish rmtfs service");
 				break;
 			}
 
@@ -503,7 +507,7 @@ int main(int argc, char **argv)
 		nfds = rmtfs_fd + 1;
 		ret = select(nfds, &rfds, NULL, NULL, NULL);
 		if (ret < 0) {
-			fprintf(stderr, "select failed: %d\n", ret);
+			LOG("select failed: %d\n", ret);
 			break;
 		} else if (ret == 0) {
 			continue;
