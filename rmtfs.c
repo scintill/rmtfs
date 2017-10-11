@@ -17,6 +17,10 @@
 #include "util.h"
 #include "rmtfs.h"
 
+#ifdef ANDROID
+#include <private/android_filesystem_config.h>
+#endif
+
 #define RMTFS_QMI_SERVICE	14
 #define RMTFS_QMI_VERSION	1
 #define RMTFS_QMI_INSTANCE	0
@@ -481,6 +485,14 @@ int main(int argc, char **argv)
 		LOG("failed to initialize storage system\n");
 		goto close_rmtfs_mem;
 	}
+
+#ifdef ANDROID
+	// drop root now that storage fds are opened
+	if (setuid(AID_SYSTEM) != 0) {
+		LOG("failed to setuid(\"system\")\n");
+		goto close_storage;
+	}
+#endif
 
 	rmtfs_fd = qrtr_open(RMTFS_QMI_SERVICE);
 	if (rmtfs_fd < 0) {
