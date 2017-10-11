@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
+#include <inttypes.h>
 
 #include "qmi_rmtfs.h"
 #include "util.h"
@@ -77,7 +78,7 @@ static void qmi_result_error(struct rmtfs_qmi_result *result, unsigned error)
 
 static void rmtfs_open(int sock, unsigned node, unsigned port, void *msg, size_t msg_len)
 {
-	struct rmtfs_qmi_result result = {};
+	struct rmtfs_qmi_result result = { 0 };
 	struct rmtfs_open_resp *resp;
 	struct rmtfs_open_req *req;
 	int caller_id = -1;
@@ -124,7 +125,7 @@ free_resp:
 
 static void rmtfs_close(int sock, unsigned node, unsigned port, void *msg, size_t msg_len)
 {
-	struct rmtfs_qmi_result result = {};
+	struct rmtfs_qmi_result result = { 0 };
 	struct rmtfs_close_resp *resp;
 	struct rmtfs_close_req *req;
 	uint32_t caller_id;
@@ -172,7 +173,7 @@ free_resp:
 static void rmtfs_iovec(int sock, unsigned node, unsigned port, void *msg, size_t msg_len)
 {
 	struct rmtfs_iovec_entry *entries = NULL;
-	struct rmtfs_qmi_result result = {};
+	struct rmtfs_qmi_result result = { 0 };
 	struct rmtfs_iovec_resp *resp;
 	struct rmtfs_iovec_req *req;
 	unsigned long phys_offset;
@@ -187,8 +188,8 @@ static void rmtfs_iovec(int sock, unsigned node, unsigned port, void *msg, size_
 	char buf[SECTOR_SIZE];
 	int ret;
 	int fd;
-	int i;
-	int j;
+	unsigned int i;
+	unsigned int j;
 
 	req = rmtfs_iovec_req_parse(msg, msg_len, &txn);
 	if (!req) {
@@ -286,7 +287,7 @@ static void rmtfs_alloc_buf(int sock, unsigned node, unsigned port, void *msg, s
 {
 	struct rmtfs_alloc_buf_resp *resp;
 	struct rmtfs_alloc_buf_req *req;
-	struct rmtfs_qmi_result result = {};
+	struct rmtfs_qmi_result result = { 0 };
 	uint32_t alloc_size;
 	uint32_t caller_id;
 	int64_t address = 0;
@@ -318,7 +319,7 @@ static void rmtfs_alloc_buf(int sock, unsigned node, unsigned port, void *msg, s
 		qmi_result_error(&result, QMI_RMTFS_ERR_INTERNAL);
 
 respond:
-	dbgprintf("[RMTFS] alloc %d, %d => 0x%lx (%d:%d)\n", caller_id, alloc_size, address, result.result, result.error);
+	dbgprintf("[RMTFS] alloc %d, %d => %" PRIx64 " (%d:%d)\n", caller_id, alloc_size, address, result.result, result.error);
 
 	resp = rmtfs_alloc_buf_resp_alloc(txn);
 	rmtfs_alloc_buf_resp_set_result(resp, &result);
@@ -340,7 +341,7 @@ static void rmtfs_get_dev_error(int sock, unsigned node, unsigned port, void *ms
 {
 	struct rmtfs_dev_error_resp *resp;
 	struct rmtfs_dev_error_req *req;
-	struct rmtfs_qmi_result result = {};
+	struct rmtfs_qmi_result result = { 0 };
 	uint32_t caller_id;
 	int dev_error = 0;
 	unsigned txn;

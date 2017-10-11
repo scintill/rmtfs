@@ -94,15 +94,15 @@ static struct qmi_tlv_item *qmi_tlv_get_item(struct qmi_tlv *tlv, unsigned id)
 	struct qmi_tlv_item *item;
 	struct qmi_packet *pkt;
 	unsigned offset = 0;
-	void *pkt_data;
+	uint8_t *pkt_data;
 
 	pkt = tlv->buf;
 	pkt_data = pkt->data;
 
 	while (offset < tlv->size) {
-		item = pkt_data + offset;
+		item = (struct qmi_tlv_item *)&pkt_data[offset];
 		if (item->key == id)
-			return pkt_data + offset;
+			return item;
 
 		offset += sizeof(struct qmi_tlv_item) + item->len;
 	}
@@ -125,7 +125,7 @@ void *qmi_tlv_get_array(struct qmi_tlv *tlv, unsigned id, unsigned len_size, siz
 {
 	struct qmi_tlv_item *item;
 	unsigned count;
-	void *ptr;
+	uint8_t *ptr;
 
 	item = qmi_tlv_get_item(tlv, id);
 	if (!item)
@@ -134,15 +134,18 @@ void *qmi_tlv_get_array(struct qmi_tlv *tlv, unsigned id, unsigned len_size, siz
 	ptr = item->data;
 	switch (len_size) {
 	case 4:
-		count = *(uint32_t*)ptr++;
+		count = *(uint32_t*)ptr;
 		break;
 	case 2:
-		count = *(uint16_t*)ptr++;
+		count = *(uint16_t*)ptr;
 		break;
 	case 1:
-		count = *(uint8_t*)ptr++;
+		count = *(uint8_t*)ptr;
 		break;
+	default:
+		return NULL;
 	}
+	ptr += len_size;
 
 	*len = count;
 	*size = (item->len - len_size) / count;
@@ -155,7 +158,7 @@ static struct qmi_tlv_item *qmi_tlv_alloc_item(struct qmi_tlv *tlv, unsigned id,
 	struct qmi_tlv_item *item;
 	size_t new_size;
 	bool migrate;
-	void *newp;
+	uint8_t *newp;
 
 	/* If using user provided buffer, migrate data */
 	migrate = !tlv->allocated;
@@ -168,7 +171,7 @@ static struct qmi_tlv_item *qmi_tlv_alloc_item(struct qmi_tlv *tlv, unsigned id,
 	if (migrate)
 		memcpy(newp, tlv->buf, tlv->size);
 
-	item = newp + tlv->size;
+	item = (struct qmi_tlv_item *)&newp[tlv->size];
 	item->key = id;
 	item->len = len;
 
@@ -200,7 +203,7 @@ int qmi_tlv_set_array(struct qmi_tlv *tlv, unsigned id, unsigned len_size, void 
 {
 	struct qmi_tlv_item *item;
 	size_t array_size;
-	void *ptr;
+	uint8_t *ptr;
 
 	if (!tlv)
 		return -EINVAL;
@@ -216,15 +219,16 @@ int qmi_tlv_set_array(struct qmi_tlv *tlv, unsigned id, unsigned len_size, void 
 
 	switch (len_size) {
 	case 4:
-		*(uint32_t*)ptr++ = len;
+		*(uint32_t*)ptr = len;
 		break;
 	case 2:
-		*(uint16_t*)ptr++ = len;
+		*(uint16_t*)ptr = len;
 		break;
 	case 1:
-		*(uint8_t*)ptr++ = len;
+		*(uint8_t*)ptr = len;
 		break;
 	}
+	ptr += len_size;
 	memcpy(ptr, buf, array_size);
 
 	return 0;

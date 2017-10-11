@@ -24,14 +24,14 @@ struct caller {
 
 static struct partition partition_table[] = {
 #ifndef RMTFS_PARTITION_TABLE
-	{ "/boot/modem_fs1", "/boot/modem_fs1" },
-	{ "/boot/modem_fs2", "/boot/modem_fs2" },
-	{ "/boot/modem_fsc", "/boot/modem_fsc" },
-	{ "/boot/modem_fsg", "/boot/modem_fsg" },
+	{ .path = "/boot/modem_fs1", .actual = "/boot/modem_fs1" },
+	{ .path = "/boot/modem_fs2", .actual = "/boot/modem_fs2" },
+	{ .path = "/boot/modem_fsc", .actual = "/boot/modem_fsc" },
+	{ .path = "/boot/modem_fsg", .actual = "/boot/modem_fsg" },
 #else
 	RMTFS_PARTITION_TABLE
 #endif
-	{}
+	{ 0 }
 };
 
 static struct caller caller_handles[MAX_CALLERS];
