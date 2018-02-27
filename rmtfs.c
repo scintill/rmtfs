@@ -490,8 +490,13 @@ int main(int argc, char **argv)
 
 			ret = qrtr_publish(rmtfs_fd, RMTFS_QMI_SERVICE, RMTFS_QMI_VERSION, RMTFS_QMI_INSTANCE);
 			if (ret < 0) {
-				fprintf(stderr, "failed to publish rmtfs service");
-				break;
+				fprintf(stderr, "failed to publish rmtfs service. waiting and trying again...");
+				sleep(3);
+				ret = qrtr_publish(rmtfs_fd, RMTFS_QMI_SERVICE, RMTFS_QMI_VERSION, RMTFS_QMI_INSTANCE);
+				if (ret < 0) {
+					fprintf(stderr, "failed to publish rmtfs service");
+					break;
+				}
 			}
 
 			do_register = false;
